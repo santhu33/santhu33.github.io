@@ -3,7 +3,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // A list of trusted SHA-256 hashes of your Android app's signing certificate.
     // The received hash will be compared against this list.
     const ALLOWED_ANDROID_HASHES = [
-        "32:A2:FC:74:D7:31:10:58:59:E5:A8:5D:F1:6D:95:F1:02:D8:5B:22:09:9B:80:64:C5:D8:91:5C:61:DA:D1:E0"
+        "80:2C:F0:93:FC:8E:B8:1A:30:B1:2A:6A:F2:FB:F0:F9:FB:40:66:D9:2D:D1:48:DD:79:92:72:F6:82:EB:61:F1"
     ];
     // The URL for the related origins request. 
     // See https://github.com/deephand/netlify-related-origin for the configuration.
