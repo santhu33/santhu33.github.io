@@ -3,11 +3,12 @@ document.addEventListener('DOMContentLoaded', () => {
     // A list of trusted SHA-256 hashes of your Android app's signing certificate.
     // The received hash will be compared against this list.
     const ALLOWED_ANDROID_HASHES = [
-        "32:A2:FC:74:D7:31:10:58:59:E5:A8:5D:F1:6D:95:F1:02:D8:5B:22:09:9B:80:64:C5:D8:91:5C:61:DA:D1:E0"
+        "80:2C:F0:93:FC:8E:B8:1A:30:B1:2A:6A:F2:FB:F0:F9:FB:40:66:D9:2D:D1:48:DD:79:92:72:F6:82:EB:61:F1"
     ];
     // The URL for the related origins request. 
     // See https://github.com/deephand/netlify-related-origin for the configuration.
     const RELATED_ORIGIN = 'deephand-related-origin.netlify.app';
+
     // --- DOM Elements ---
     const statusContainer = document.getElementById('status-checks');
     const getAssertionBtn = document.getElementById('get-assertion-btn');
@@ -17,7 +18,9 @@ document.addEventListener('DOMContentLoaded', () => {
     const credentialsListDiv = document.getElementById('credentials-list');
     const clearStorageBtn = document.getElementById('clear-storage-btn');
     const relatedOriginsCheckbox = document.getElementById('related-origins-checkbox');
+
     // --- Utility Functions ---
+
     /**
      * Decodes a Base64URL string into an ArrayBuffer.
      * @param {string} str The Base64URL string to decode.
@@ -31,6 +34,7 @@ document.addEventListener('DOMContentLoaded', () => {
             else if (pad === 3) base64 += '=';
             else throw new Error('Invalid base64url string!');
         }
+
         const binaryStr = atob(base64);
         const len = binaryStr.length;
         const bytes = new Uint8Array(len);
@@ -39,6 +43,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         return bytes.buffer;
     };
+
     /**
      * Encodes an ArrayBuffer into a Base64URL string.
      * @param {ArrayBuffer} buffer The ArrayBuffer to encode.
@@ -49,6 +54,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const binaryStr = String.fromCharCode.apply(null, bytes);
         return btoa(binaryStr).replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '');
     };
+
     /**
      * Converts an ArrayBuffer to a colon-separated hexadecimal string.
      * @param {ArrayBuffer} buffer The ArrayBuffer to convert.
@@ -59,6 +65,7 @@ document.addEventListener('DOMContentLoaded', () => {
             .map(b => b.toString(16).padStart(2, '0').toUpperCase())
             .join(':');
     };
+
     /**
      * Logs messages to the on-screen console.
      * @param {string} title The title of the log entry.
@@ -75,6 +82,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const currentLog = logDisplay.innerHTML;
         logDisplay.innerHTML = `[${now}] <span class="${color}">${title}</span>${dataStr}\n\n${currentLog}`;
     };
+
     /**
      * Renders a status item in the UI.
      * @param {string} label The text label for the check.
@@ -85,6 +93,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const status = success ? 'success' : 'failure';
         const badgeText = success ? 'Available' : 'Unavailable';
         const noteHtml = notes ? `<p class="text-xs text-gray-500 mt-1">${notes}</p>` : '';
+
         statusContainer.innerHTML += `
             <div class="status-item">
                 <div>
@@ -95,7 +104,9 @@ document.addEventListener('DOMContentLoaded', () => {
             </div>
         `;
     };
+
     // --- WebAuthn Logic ---
+
     /**
      * Converts an ASN.1 DER-encoded signature to a raw (r,s) format.
      * @param {ArrayBuffer} derSignature The DER-encoded signature.
@@ -120,6 +131,7 @@ document.addEventListener('DOMContentLoaded', () => {
             }
             const r = signature.slice(offset, offset + rLength);
             offset += rLength;
+
             // Parse s
             if (signature[offset] !== 0x02) throw new Error("Expected integer for s.");
             offset++;
@@ -129,6 +141,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 sLength--;
             }
             const s = signature.slice(offset, offset + sLength);
+
             // Concatenate r and s to form a raw 64-byte signature
             const rawSignature = new Uint8Array(64);
             rawSignature.set(r, 32 - r.length);
@@ -140,11 +153,14 @@ document.addEventListener('DOMContentLoaded', () => {
             return null;
         }
     };
+
+
     /**
      * Checks the environment for required APIs and features.
      */
     const performInitialChecks = async () => {
         log('Starting environment checks...');
+
         // 1. Check for Local Storage (only show a message on failure)
         let localStorageAvailable = false;
         try {
@@ -158,12 +174,14 @@ document.addEventListener('DOMContentLoaded', () => {
             renderStatus('Local Storage', false, 'Required for this demo to store passkeys.');
             log('Local Storage is not available. This demo will not be able to save credentials.', null, 'error');
         }
+
         // 2. Check for WebAuthn API (PublicKeyCredential)
         const webAuthnAvailable = !!window.PublicKeyCredential;
         renderStatus('WebAuthn API', webAuthnAvailable, 'Checks for <code>window.PublicKeyCredential</code>. If this fails on Android, you may need to call <code>WebSettingsCompat</code> <code>.setWebAuthenticationSupport()</code> in your app.');
         if (!webAuthnAvailable) {
             log('WebAuthn API not found. This browser/WebView does not support WebAuthn.', null, 'error');
         }
+
         // 3. Check for Conditional Mediation (Passkey Autofill)
         let conditionalMediationAvailable = false;
         if (webAuthnAvailable && PublicKeyCredential.isConditionalMediationAvailable) {
@@ -174,6 +192,7 @@ document.addEventListener('DOMContentLoaded', () => {
         log('Environment checks complete.');
         loadCredentialsFromStorage();
     };
+
     /**
      * Validates the origin from clientDataJSON.
      * @param {string} receivedOrigin - The origin string from the authenticator.
@@ -182,6 +201,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const validateOrigin = (receivedOrigin) => {
         const expectedWebOrigin = window.location.origin;
         let isOriginValid = false;
+
         // Check 1: Standard web origin
         if (receivedOrigin === expectedWebOrigin) {
             isOriginValid = true;
@@ -193,7 +213,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 const receivedHashBuffer = base64urlToBuffer(receivedHashBase64);
                 const receivedHashHex = bufferToColonHex(receivedHashBuffer);
                 
-                log`Received Android Hash: ${receivedHashHex}`);
+                log(`Received Android Hash: ${receivedHashHex}`);
+
                 if (ALLOWED_ANDROID_HASHES.includes(receivedHashHex)) {
                     isOriginValid = true;
                 }
@@ -202,21 +223,25 @@ document.addEventListener('DOMContentLoaded', () => {
                 isOriginValid = false;
             }
         }
+
         if (!isOriginValid) {
-            throw new Error`Origin mismatch! \nExpected Web Origin: ${expectedWebOrigin} \nOR Expected Android Hash In: [${ALLOWED_ANDROID_HASHES.join(', ')}] \nReceived: ${receivedOrigin}`);
+            throw new Error(`Origin mismatch! \nExpected Web Origin: ${expectedWebOrigin} \nOR Expected Android Hash In: [${ALLOWED_ANDROID_HASHES.join(', ')}] \nReceived: ${receivedOrigin}`);
         }
         log('✅ Origin verified');
     };
+
     /**
      * Loads credentials from local storage and displays them in the options panel.
      */
     const loadCredentialsFromStorage = () => {
         const creds = JSON.parse(localStorage.getItem('webauthn-credentials') || '[]');
         credentialsListDiv.innerHTML = ''; 
+
         if (creds.length === 0) {
             credentialsListDiv.innerHTML = '<p class="text-gray-500">No passkeys created yet.</p>';
             return;
         }
+
         creds.forEach(cred => {
             const el = document.createElement('label');
             el.className = 'credential-item';
@@ -254,11 +279,13 @@ document.addEventListener('DOMContentLoaded', () => {
             alert('Please enter a username.');
             return;
         }
-        log`Creating passkey for username: ${username}...`);
+        log(`Creating passkey for username: ${username}...`);
+
         try {
             const challenge = crypto.getRandomValues(new Uint8Array(32));
             const rpId = relatedOriginsCheckbox.checked ? RELATED_ORIGIN : window.location.hostname;
-            log`Using RP ID: ${rpId}`);
+            log(`Using RP ID: ${rpId}`);
+
             const createOptions = {
                 challenge,
                 rp: { name: 'WebAuthn WebView Demo', id: rpId },
@@ -271,27 +298,31 @@ document.addEventListener('DOMContentLoaded', () => {
                 timeout: 60000,
                 attestation: 'none'
             };
+
             const loggableOptions = {
                 ...createOptions,
                 challenge: bufferToBase64url(createOptions.challenge),
                 user: { ...createOptions.user, id: bufferToBase64url(createOptions.user.id) },
             };
             log('Calling navigator.credentials.create() with options:', loggableOptions);
+
             const credential = await navigator.credentials.create({ publicKey: createOptions });
             log('navigator.credentials.create() successful!', credential, 'success');
+
             log('--- Verifying new credential (simulated server-side) ---');
             const clientDataJSON = JSON.parse(new TextDecoder().decode(credential.response.clientDataJSON));
             
             const challengeReceived = clientDataJSON.challenge;
             const challengeSent = bufferToBase64url(challenge);
             if (challengeReceived !== challengeSent) {
-                throw new Error`Challenge mismatch! \nExpected: ${challengeSent} \nReceived: ${challengeReceived}`);
+                throw new Error(`Challenge mismatch! \nExpected: ${challengeSent} \nReceived: ${challengeReceived}`);
             }
             log('✅ Challenge verified');
+
             validateOrigin(clientDataJSON.origin);
             
             if (clientDataJSON.type !== 'webauthn.create') {
-                throw new Error`Type mismatch! \nExpected: 'webauthn.create' \nReceived: '${clientDataJSON.type}'`);
+                throw new Error(`Type mismatch! \nExpected: 'webauthn.create' \nReceived: '${clientDataJSON.type}'`);
             }
             log('✅ Type verified');
             
@@ -306,28 +337,33 @@ document.addEventListener('DOMContentLoaded', () => {
             log('✅ Credential stored in local storage.', newCred, 'success');
             usernameInput.value = '';
             loadCredentialsFromStorage();
+
         } catch (err) {
             log('Error during credential creation', { name: err.name, message: err.message }, 'error');
         }
     };
+
     /**
      * Handles the login flow (getAssertion).
      */
     const handleGetAssertion = async () => {
         log('Starting passkey login...');
+
         try {
             const selectedCreds = Array.from(document.querySelectorAll('.credential-checkbox:checked'))
                 .map(cb => ({ type: 'public-key', id: base64urlToBuffer(cb.value) }));
             
             const challenge = crypto.getRandomValues(new Uint8Array(32));
             const rpId = relatedOriginsCheckbox.checked ? RELATED_ORIGIN : window.location.hostname;
-            log`Using RP ID: ${rpId}`);
+            log(`Using RP ID: ${rpId}`);
+
             const getOptions = {
                 challenge,
                 timeout: 60000,
                 userVerification: 'required',
                 rpId: rpId,
             };
+
             if (selectedCreds.length > 0) {
                 getOptions.allowCredentials = selectedCreds;
             }
@@ -340,24 +376,31 @@ document.addEventListener('DOMContentLoaded', () => {
                 })
             };
             log('Calling navigator.credentials.get() with options:', loggableOptions);
+
             const assertion = await navigator.credentials.get({ publicKey: getOptions });
             log('navigator.credentials.get() successful!', assertion, 'success');
+
             log('--- Verifying assertion (simulated server-side) ---');
+
             const allCreds = JSON.parse(localStorage.getItem('webauthn-credentials') || '[]');
             const credToVerify = allCreds.find(c => c.id === bufferToBase64url(assertion.rawId));
+
             if (!credToVerify) {
-                throw new Error`Could not find credential with ID ${bufferToBase64url(assertion.rawId)} in storage.`);
+                throw new Error(`Could not find credential with ID ${bufferToBase64url(assertion.rawId)} in storage.`);
             }
             log('Found matching credential in storage for verification.', credToVerify);
+
             const clientDataJSON = JSON.parse(new TextDecoder().decode(assertion.response.clientDataJSON));
             
             const challengeReceived = clientDataJSON.challenge;
             const challengeSent = bufferToBase64url(challenge);
             if (challengeReceived !== challengeSent) {
-                throw new Error`Challenge mismatch! \nExpected: ${challengeSent} \nReceived: ${challengeReceived}`);
+                throw new Error(`Challenge mismatch! \nExpected: ${challengeSent} \nReceived: ${challengeReceived}`);
             }
             log('✅ Challenge verified');
+
             validateOrigin(clientDataJSON.origin);
+
             const authenticatorData = assertion.response.authenticatorData;
             const clientDataHash = await crypto.subtle.digest('SHA-256', assertion.response.clientDataJSON);
             const signatureBase = new Uint8Array([...new Uint8Array(authenticatorData), ...new Uint8Array(clientDataHash)]);
@@ -371,10 +414,12 @@ document.addEventListener('DOMContentLoaded', () => {
             );
             
             log('Imported public key for verification.');
+
             const rawSignature = derToRawSignature(assertion.response.signature);
             if (!rawSignature) {
                 throw new Error("Failed to parse signature from authenticator.");
             }
+
             const signatureIsValid = await crypto.subtle.verify(
                 { name: 'ECDSA', hash: { name: 'SHA-256' } },
                 publicKey,
@@ -384,31 +429,36 @@ document.addEventListener('DOMContentLoaded', () => {
             
             if (signatureIsValid) {
                 log('✅ SIGNATURE VERIFIED!', null, 'success');
-                log`Welcome back, ${credToVerify.username}!`, null, 'success');
+                log(`Welcome back, ${credToVerify.username}!`, null, 'success');
             } else {
                 throw new Error("Signature verification failed!");
             }
+
         } catch (err) {
             log('Error during assertion', { name: err.name, message: err.message }, 'error');
         }
     };
+
     /**
      * Handles the logic for the clear storage button.
      */
     let isConfirmingClear = false;
     let clearConfirmTimeout;
+
     const resetClearButtonState = () => {
         clearStorageBtn.textContent = 'Clear All Stored Passkeys';
         clearStorageBtn.classList.remove('bg-yellow-500', 'hover:bg-yellow-600', 'focus:ring-yellow-300');
         clearStorageBtn.classList.add('bg-red-600', 'hover:bg-red-700', 'focus:ring-red-300');
         isConfirmingClear = false;
     };
+
     const handleClearStorage = () => {
         if (!isConfirmingClear) {
             clearStorageBtn.textContent = 'Are you sure? Click again to clear';
             clearStorageBtn.classList.remove('bg-red-600', 'hover:bg-red-700', 'focus:ring-red-300');
             clearStorageBtn.classList.add('bg-yellow-500', 'hover:bg-yellow-600', 'focus:ring-yellow-300');
             isConfirmingClear = true;
+
             clearConfirmTimeout = setTimeout(() => {
                 resetClearButtonState();
                 log('Clear storage action timed out.', '', 'info');
@@ -421,10 +471,12 @@ document.addEventListener('DOMContentLoaded', () => {
             resetClearButtonState();
         }
     };
+
     // --- Event Listeners ---
     createCredentialBtn.addEventListener('click', handleCreateCredential);
     getAssertionBtn.addEventListener('click', handleGetAssertion);
     clearStorageBtn.addEventListener('click', handleClearStorage);
+
     // --- Initialisation ---
     performInitialChecks();
 });
